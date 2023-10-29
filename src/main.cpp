@@ -4,9 +4,11 @@
 #include <MD_Parola.h>
 #include <SPI.h>
 
-#include <NTPClient.h>
+#include <NTP.h>
 #include <WiFiUdp.h>
 
+#include <ESPAsyncWiFiManager.h>
+#include <ESPAsyncWebServer.h>
 
 //MAX7912 Definition
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
@@ -17,15 +19,15 @@
 
 MD_Parola maxx = MD_Parola(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 
-//Wifi 
+//Wifi/server 
+DNSServer dns;
+AsyncWebServer server (80);
 
-const char *ssid = "AlisWifi_2G";
-const char *pass = "8BDZL3GQ59";
 
 //NTP and Time variables
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "cz.pool.ntp.org");
+NTP ntp(ntpUDP);
 
 
 String minutestr;
@@ -59,50 +61,40 @@ void setup() {
   maxx.displayClear();
   maxx.setTextAlignment(PA_LEFT);
 
-  maxx.print("|");
+
+  maxx.print("- ");
   delay(500);
-  maxx.print("|-");
+  maxx.print("- -");
   delay(500);
-  maxx.print("|-|");
+  maxx.print("- - -");
   delay(500);
-  maxx.print("|-|-");
+  maxx.print("- - - - ");
   delay(500);
-  maxx.print("|-|-|");
-  delay(500);
-  maxx.print("|-|-|-");
-  delay(500);
-  maxx.print("|-|-|-|");
-  delay(500);
-  maxx.print("|-|-|-|-");
-  delay(500);
-  maxx.print("|-|-|-|-|");
+  maxx.print("- - - - -");
   delay(1000);
 
   maxx.displayClear();
-  maxx.print("WiFi:");
-
+  maxx.setTextAlignment(PA_CENTER);
+  maxx.print("--:--");
+  maxx.displayAnimate();
   delay(2000);
   maxx.setIntensity(2);
   delay(2000);
   maxx.setIntensity(5);
 
-  WiFi.begin(ssid, pass);
+  AsyncWiFiManager wifiManager(&server, &dns);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    maxx.print("WiFi: |");
-    delay(500);
-    maxx.print("WiFi:--");
-  }
-  maxx.setTextAlignment(PA_CENTER);
-  delay(1000);
-  maxx.print("NTP");
+  wifiManager.autoConnect("Hodiny");
+
+
+
   maxx.setIntensity(3);
 
-  timeClient.begin();
+  ntp.ruleDST("CEST", Last, Sun, Mar, 2, 120);
+  ntp.ruleSTD("CET", Last, Sun, Oct, 3, 60);
 
-  timeClient.setUpdateInterval(60000);
-  timeClient.setTimeOffset(7200);           //3600 zimni //7200 letni
+  ntp.begin();
+
 
 }
 
@@ -112,7 +104,7 @@ void loop() {
 
   if (currentMillis - previousMillis > loopinterval) {
     
-    timeClient.update();
+    ntp.update();
     print_time();
     brightness();
     previousMillis = currentMillis;
@@ -122,8 +114,8 @@ void loop() {
 }
 
 void print_time() {
-  hour = timeClient.getHours();
-  minute = timeClient.getMinutes();
+  hour = ntp.hours();
+  minute = ntp.minutes();
 
   if (minute < 10) {
     minutestr = ("0" + String(minute));
