@@ -161,7 +161,7 @@ void handleToggleTime(AsyncWebServerRequest *request) {
 
 void handleTime(AsyncWebServerRequest *request) {
   String currentTime = ntp.getFormattedTime();
-  request->send(200, "text/plain", currentTime + " (" + (isDST ? "DST" : "Standard") + ")");
+  request->send(200, "text/plain", currentTime + " (" + (isDST ? "Letni Cas" : "Zimni Cas") + ")");
 }
 
 //--------------------------//
@@ -251,12 +251,12 @@ void brightness() {
 
   //maxx.setIntensity(sensData);
 
-  if (hour >= 16) {
+  if ((hour >= 16) || (hour < 7)) {
     maxx.setIntensity(0);
   }
 
-  if (hour <= 7) {
-    maxx.setIntensity(6);
+  if ((hour < 16) || (hour >= 7)) {
+    maxx.setIntensity(7);
   }
 
 }
