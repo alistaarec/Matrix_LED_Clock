@@ -65,9 +65,9 @@ int sensData = 0;
 void updateTimeOffset() {
   // Adjust for Standard or Daylight Saving Time
   if (isDST) {
-    ntp.setTimeOffset(7200);  // DST = UTC + 1 hour
+    ntp.setTimeOffset(7200);  // DST = CET + 1 hour
   } else {
-    ntp.setTimeOffset(3600);     // Standard Time = UTC
+    ntp.setTimeOffset(3600);     // Standard Time = CET
   }
 }
 
@@ -240,7 +240,7 @@ void setup() {
 
   AsyncWiFiManager wifiManager(&server, &dns);
 
-  wifiManager.autoConnect("Hodiny_ESP");
+  wifiManager.autoConnect("ESP Clock");
 
   MDNS.begin("ntpclock");
 
