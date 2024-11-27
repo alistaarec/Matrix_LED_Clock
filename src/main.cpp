@@ -11,6 +11,8 @@
 #include <ESPAsyncWiFiManager.h>
 #include <ESPAsyncWebServer.h>
 
+#include <ESP8266mDNS.h>
+
 //MAX7912 Definition
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4
@@ -74,7 +76,7 @@ void handleRoot(AsyncWebServerRequest *request) {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>NTP Hodiny</title>
+  <title>NTP Clock</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -114,8 +116,51 @@ void handleRoot(AsyncWebServerRequest *request) {
     .button:hover {
       background-color: #0056b3;
     }
+    .language-buttons {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+    .language-buttons button {
+      border: none;
+      background: none;
+      cursor: pointer;
+      margin: 0 5px;
+    }
+    .language-buttons img {
+      width: 30px;
+      height: 20px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    .language-buttons img:hover {
+      border-color: #007bff;
+    }
   </style>
   <script>
+    const texts = {
+      en: {
+        title: "NTP Clock Settings",
+        loading: "Loading",
+        button: "Switch Time"
+      },
+      cz: {
+        title: "NTP Hodiny Nastaveni",
+        loading: "Nacitam",
+        button: "Prepnout cas"
+      }
+    };
+
+    let currentLanguage = "en";
+
+    function updateLanguage(lang) {
+      currentLanguage = lang;
+      document.querySelector("h1").innerText = texts[lang].title;
+      document.getElementById("time").innerText = texts[lang].loading;
+      document.querySelector(".button").innerText = texts[lang].button;
+      fetchTime(); // Refresh time in case language affects format
+    }
+
     function fetchTime() {
       fetch('/time')
         .then(response => response.text())
@@ -130,20 +175,29 @@ void handleRoot(AsyncWebServerRequest *request) {
     }
 
     setInterval(fetchTime, 1000);  // Update time every second
-    window.onload = fetchTime;     // Initial fetch
+    window.onload = () => {
+      updateLanguage(currentLanguage); // Initialize with the default language
+    };
   </script>
 </head>
 <body>
   <div class="container">
-    <h1>NTP Hodiny Nastaveni</h1>
-    <p id="time">Nacitam</p>
-    <button class="button" onclick="toggleTimeMode()">Prepnout cas - 
-      <span id="toggleMode">Standard Time</span>
-    </button>
+    <div class="language-buttons">
+      <button onclick="updateLanguage('cz')">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/c/cb/Flag_of_the_Czech_Republic.svg" alt="Czech Flag">
+      </button>
+      <button onclick="updateLanguage('en')">
+        <img src="https://upload.wikimedia.org/wikipedia/en/a/a4/Flag_of_the_United_States.svg" alt="US Flag">
+      </button>
+    </div>
+    <h1></h1>
+    <p id="time"></p>
+    <button class="button" onclick="toggleTimeMode()"></button>
   </div>
 </body>
 </html>
 )=====";
+
   request->send(200, "text/html", html);
 }
 
@@ -161,7 +215,7 @@ void handleToggleTime(AsyncWebServerRequest *request) {
 
 void handleTime(AsyncWebServerRequest *request) {
   String currentTime = ntp.getFormattedTime();
-  request->send(200, "text/plain", currentTime + " (" + (isDST ? "Letni Cas" : "Zimni Cas") + ")");
+  request->send(200, "text/plain", currentTime + " (" + (isDST ? "CET DST" : "CET") + ")");
 }
 
 //--------------------------//
@@ -188,6 +242,8 @@ void setup() {
 
   wifiManager.autoConnect("Hodiny_ESP");
 
+  MDNS.begin("ntpclock");
+
   maxx.setIntensity(3);
 
   ntp.begin();
@@ -199,9 +255,13 @@ void setup() {
   server.on("/time", HTTP_GET, handleTime);
   server.begin();
 
+  MDNS.addService("http", "tcp", 80);
+
 }
 
 void loop() {
+
+  MDNS.update();
 
   unsigned long currentMillis = millis();
 
